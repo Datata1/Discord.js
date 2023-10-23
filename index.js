@@ -205,6 +205,7 @@ client.on(Events.InteractionCreate, async interaction => {
 
 
 
+
 							// Convert the JavaScript object back to a JSON string
 							const updatedData = JSON.stringify(jsonData, null, 2);
 
@@ -219,8 +220,11 @@ client.on(Events.InteractionCreate, async interaction => {
 							});
 
 
-						},
-						await interaction.reply({ content: 'Your submission was received successfully!' }));
+						}
+
+						const Members = client.guilds.cache.get("GuildID").members.map(member => member.id);
+					console.log(Members)
+						await interaction.reply({ content: 'Your submission was received successfully!', ephemeral: true}));
 				}
 			}
 		)

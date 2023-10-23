@@ -5,8 +5,8 @@ const { UserSelectMenuBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, Str
 module.exports = {
 	cooldown: 5,
 	data: new SlashCommandBuilder()
-		.setName('ping')
-		.setDescription('Replies with Pong!'),
+		.setName('signup')
+		.setDescription('Starts the process of registration.'),
 
 	category: 'ping',
 	async execute(interaction) {
@@ -14,15 +14,16 @@ module.exports = {
 			.setCustomId('user-menu')
 			.setMaxValues(2) // One user maximum
 			.setMinValues(0) // One user minimum
-			.setPlaceholder('(optional) Select up to three User');
+			.setPlaceholder('');
 
 
 		const row = new ActionRowBuilder()
 			.addComponents(UserSelectMenu);
 
 		await interaction.reply({
-			content: `jsahfkljsfasf`,
+			content: `Select yourself and up to two Teammembers:`,
 			components: [row],
+			ephemeral: true
 		})
 	},
 };
