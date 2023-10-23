@@ -6,16 +6,19 @@ const { Client, Collection, Events, GatewayIntentBits, Guild, GuildMember, Messa
 	ModalBuilder,
 	TextInputBuilder,
 	TextInputStyle,
+	REST,
+	Routes
 } = require('discord.js');
-const { token } = require('./config.json');
+const { token, clientId, guildId } = require('./config.json');
 
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
-client.cooldowns = new Collection();
 client.commands = new Collection();
+
 const foldersPath = path.join(__dirname, 'commands');
 const commandFolders = fs.readdirSync(foldersPath);
+
 
 for (const folder of commandFolders) {
 	const commandsPath = path.join(foldersPath, folder);
@@ -30,74 +33,88 @@ for (const folder of commandFolders) {
 		}
 	}
 }
+console.log(client.commands)
+const commands = [];
+// Grab all the command files from the commands directory you created earlier
+const folderPath = path.join(__dirname, 'commands');
+const commanFolders = fs.readdirSync(folderPath);
 
+for (const folder of commanFolders) {
+	// Grab all the command files from the commands directory you created earlier
+	const commandsPath = path.join(folderPath, folder);
+	const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+	// Grab the SlashCommandBuilder#toJSON() output of each command's data for deployment
+	for (const file of commandFiles) {
+		const filePath = path.join(commandsPath, file);
+		const command = require(filePath);
+		if ('data' in command && 'execute' in command) {
+			commands.push(command.data.toJSON());
+		} else {
+			console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
+		}
+	}
+}
+console.log(client.commands)
+
+// Construct and prepare an instance of the REST module
+const rest = new REST().setToken(token);
+
+// and deploy your commands!
+(async () => {
+	try {
+		console.log(`Started refreshing ${commands.length} application (/) commands.`);
+
+		// The put method is used to fully refresh all commands in the guild with the current set
+		const data = await rest.put(
+			Routes.applicationGuildCommands(clientId, guildId),
+			{ body: commands },
+		);
+
+		console.log(`Successfully reloaded ${data.length} application (/) commands.`);
+	} catch (error) {
+		// And of course, make sure you catch and log any errors!
+		console.error(error);
+	}
+})();
+console.log(client.commands)
+
+client.login(token);
 client.once(Events.ClientReady, () => {
 	console.log('Ready!');
 });
 
 client.on(Events.InteractionCreate, async interaction => {
+
 	if (!interaction.isChatInputCommand()) return;
 
 	const command = client.commands.get(interaction.commandName);
 
 	if (!command) return;
 
-	const { cooldowns } = client;
-
-	if (!cooldowns.has(command.data.name)) {
-		cooldowns.set(command.data.name, new Collection());
-	}
-
-	const now = Date.now();
-	const timestamps = cooldowns.get(command.data.name);
-	const defaultCooldownDuration = 3;
-	const cooldownAmount = (command.cooldown ?? defaultCooldownDuration) * 1000;
-
-	if (timestamps.has(interaction.user.id)) {
-		const expirationTime = timestamps.get(interaction.user.id) + cooldownAmount;
-
-		if (now < expirationTime) {
-			const expiredTimestamp = Math.round(expirationTime / 1000);
-			return interaction.reply({ content: `Please wait, you are on a cooldown for \`${command.data.name}\`. You can use it again <t:${expiredTimestamp}:R>.`, ephemeral: true });
-		}
-	} else if (interaction.isButton()) {
-			// respond to the button
-		} else if (interaction.isStringSelectMenu()) {
-			// respond to the select menu
-		}
-
-
-	timestamps.set(interaction.user.id, now);
-	setTimeout(() => timestamps.delete(interaction.user.id), cooldownAmount);
-
 	try {
 		await command.execute(interaction);
 	} catch (error) {
 		console.error(error);
 		await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
-	}
-});
-
-client.login(token);
-
+	}})
 
 client.on(Events.InteractionCreate, async interaction => {
 	if (!interaction.isUserSelectMenu()) return;
 
 	if (interaction.customId === 'user-menu') {
 		const team = {};
-		const teamName = interaction.user.username
-		console.log(teamName)
+		const teamName = interaction.user.username;
+		console.log(teamName);
 
 		await interaction.values.forEach(async value => {
 			const ausgesuchteUser = await client.users.fetch(`${value}`);
 			if (team[teamName]) {
 				team[teamName].push(ausgesuchteUser.username);
-			} else {
+			}			else {
 				team[teamName] = [ausgesuchteUser.username];
 			}
 		});
-		team[teamName].push(interaction.user.username)
+		team[teamName].push(interaction.user.username);
 
 		console.log(team);
 
@@ -118,13 +135,13 @@ client.on(Events.InteractionCreate, async interaction => {
 				.setPlaceholder('example@example.com')
 				.setRequired(true);
 
-			const addParticipant = new ActionRowBuilder().addComponents(participant)
+			const addParticipant = new ActionRowBuilder().addComponents(participant);
 			modal.addComponents(addParticipant);
 
 
-			console.log(addParticipant)
-			console.log(participant)
-			console.log(modal)
+			console.log(addParticipant);
+			console.log(participant);
+			console.log(modal);
 		}
 		const teamname = new TextInputBuilder()
 			.setCustomId('team-name')
@@ -141,17 +158,17 @@ client.on(Events.InteractionCreate, async interaction => {
 		console.log(teamname)
 		console.log(modal)
 		 fs.readFile('team.json', 'utf8', (err, data) => {
-    if (err) {
-      console.error('Error reading the JSON file:', err);
-      return;
-    }
+			if (err) {
+	  console.error('Error reading the JSON file:', err);
+	  return;
+	}
 
     const jsonData = JSON.parse(data);
 
-    // Füge die neuen Teamdaten zu jsonData hinzu
+			// Füge die neuen Teamdaten zu jsonData hinzu
     jsonData[teamName] = team[teamName];
 
-    // Konvertiere jsonData zurück in JSON-String
+			// Konvertiere jsonData zurück in JSON-String
     const updatedData = JSON.stringify(jsonData, null, 2);
 
     // Schreibe die aktualisierten Daten zurück in die JSON-Datei
@@ -166,12 +183,7 @@ client.on(Events.InteractionCreate, async interaction => {
   });
 
   // Zeige das Modal an
-  await interaction.showModal(modal);}}
-
-
-)
-
-
+  await interaction.showModal(modal);}})
 		client.on(Events.InteractionCreate, async interaction => {
 				if (!interaction.isModalSubmit()) return;
 				if (interaction.customId === 'email') {
@@ -191,8 +203,7 @@ client.on(Events.InteractionCreate, async interaction => {
 								delete jsonData[interaction.user.username]
 							}
 
-							// Merge the new data with the existing data
-							Object.assign(data, jsonData[teamname]);
+
 
 							// Convert the JavaScript object back to a JSON string
 							const updatedData = JSON.stringify(jsonData, null, 2);
@@ -209,7 +220,7 @@ client.on(Events.InteractionCreate, async interaction => {
 
 
 						},
-						await interaction.reply({content: 'Your submission was received successfully!'}))
+						await interaction.reply({ content: 'Your submission was received successfully!' }));
 				}
 			}
 		)
